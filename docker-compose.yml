@@ -1,0 +1,83 @@
+version: "3"
+
+services:
+  fe-container:
+    platform: linux/x86_64
+    container_name: fe-container
+    build:
+      context: frontend/web/eatingSSAFY
+    ports:
+      - "3000:3000"
+    depends_on:
+      - be-container
+    environment:
+      TZ: "Asia/Seoul"
+    networks:
+      - app-network
+
+  be-container:
+    platform: linux/x86_64
+    container_name: be-container
+    build:
+      context: .
+      dockerfile: backend/eatingSSAFY/Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql-container
+    env_file:
+      - .env
+    environment:
+      TZ: "Asia/Seoul"
+    networks:
+      - app-network
+
+  broker-container:
+    platform: linux/x86_64
+    container_name: broker-container
+    image: eclipse-mosquitto:latest
+    ports:
+      - "${BROKER_PORT}:${BROKER_PORT}"
+    networks:
+      - app-network
+    environment:
+      TZ: "Asia/Seoul"
+    volumes:
+      - ./mqtt_server/conf:/mosquitto/config
+
+  mqtt-container:
+    platform: linux/x86_64
+    container_name: mqtt-container
+    build: 
+      context: .
+      dockerfile: mqtt_server/Dockerfile
+    ports:
+      - "${BRIDGE_PORT}:${BRIDGE_PORT}"
+    depends_on:
+      - broker-container
+    env_file:
+      - .env
+    environment:
+      TZ: "Asia/Seoul"
+    networks:
+      - app-network
+
+  mysql-container:
+    container_name: mysql-container
+    platform: linux/x86_64
+    image: mysql:latest
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_USER: ${DB_USER_NAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      TZ: "Asia/Seoul"
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
